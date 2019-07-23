@@ -105,7 +105,7 @@ else:
     print("\nDirectory " + args.results_folder + " already exists\n")
     a1 = yes_or_no()
     if a1 == True :
-         shutil.rmtree(args.results_folder, ignore_errors=True)
+         shutil.rmtree(args.results_folder, ignore_errors=True)         # Prompt to delete directory if it already exists
          print("====> Directory Deleted")
          os.mkdir(args.results_folder)
          print("====> Directory recreated")
