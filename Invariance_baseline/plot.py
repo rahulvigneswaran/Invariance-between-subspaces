@@ -30,9 +30,9 @@ for i in range(len(lst)):
 	sig=[]
 	for j in range(coeff.shape[0]):
 		a=torch.zeros(coeff[j].shape[0]).long()
-	   	b=torch.arange(0, coeff[j].shape[0])
+		b=torch.arange(0, coeff[j].shape[0])
 		c=torch.where(((coeff[j] > -lst[i]) & (coeff[j] < lst[i])),a,b)
-	        sig.append(torch.sum(c != 0).cpu().numpy())
+		sig.append(torch.sum(c != 0).cpu().numpy())
 	sig = np.array(sig)
 	plt.plot(sig,label= lst[i])
 	plt.legend()

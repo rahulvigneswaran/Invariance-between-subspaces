@@ -173,7 +173,7 @@ def main():
     hess = torch.tensor(hess).float()                   # Converting the Hessian to Tensor
     eigenvalues, eigenvec = torch.symeig(hess,eigenvectors=True)  
 
-    hess, eigenvalues, eigenvec = invar(mdl,args, inputs_train, targets_train, hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles)
+    hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles = invar(mdl,args, inputs_train, targets_train, hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles)
 
     print("======================================================================\n")
     for i in tqdm(range (0,6), desc="Pruning Progress",dynamic_ncols=True):
@@ -192,10 +192,19 @@ def main():
         
         mdl.params_flat = pruned_params_flat
         new_params = train_model(args, mdl,results)
-        hess, eigenvalues, eigenvec = invar(mdl,args, inputs_train, targets_train, hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles)
+        hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles = invar(mdl,args, inputs_train, targets_train, hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles)
 
-        
-        #print(mdl.params)
+    args.suffix=args.results_folder+'/coeff.npy'
+    np.save(args.suffix,coeff)
+    args.suffix=args.results_folder+'/ang_sb.npy'
+    np.save(args.suffix,ang_sb)
+    args.suffix=args.results_folder+'/ang_np.npy'
+    np.save(args.suffix,ang_np)   
+    args.suffix=args.results_folder+'/p_angles.npy'
+    np.save(args.suffix,p_angles)   
+    #args.suffix=args.results_folder+'/all_weights.npy'
+    #np.save(args.suffix,np.array(all_w))
+    
         
 
 # TODO Write Pruning step Here
@@ -289,22 +298,30 @@ def invar(mdl,args, inputs_train, targets_train, prev_hess, prev_eigval, prev_ei
     prev_hess = hess
     prev_eigval = eigenvalues
     prev_eigvec = eigenvec
-# TODO Make the plots work
-    #    Saving png plots
-    #coeff = torch.tensor(coeff)
-    #for i in range(coeff.shape[0]):
-    #    a=torch.zeros(coeff[i].shape[0]).long()
-    #    b=torch.arange(0, coeff[i].shape[0])
-    #    c=torch.where(((coeff[i] > -0.1) & (coeff[i] < 0.1)),b,a)
-    #    z = torch.zeros(coeff[i].shape[0]).fill_(0)
-    #    z[torch.nonzero(c)] = coeff[i][torch.nonzero(c)]
-    #    plt.plot(z)
-    #plt.xlabel('Dimension')
-    #plt.ylabel('Coefficient')
-    #pnpy = args.results_folder+'/plot1'+'.png'
-    #plt.savefig(pnpy, format='png')
 
-    return hess, eigenvalues, eigenvec
+    #    Saving png plots
+    coeff = torch.tensor(coeff)
+    #print(coeff)
+    for i in range(coeff.shape[0]):
+        a=torch.zeros(coeff[i].shape[0]).long()
+        #print(a)
+        b=torch.arange(0, coeff[i].shape[0])
+        #print(b)
+        c=torch.where(((coeff[i] > -0.1) & (coeff[i] < 0.1)),b,a)
+        #print(c)
+        z = torch.zeros(coeff[i].shape[0]).fill_(0)
+        #print(z)
+        z[torch.nonzero(c)] = coeff[i][torch.nonzero(c)]
+        #print(np.shape(z))
+        z = np.array(z)
+        plt.plot(z)
+    plt.xlabel('Dimension')
+    plt.ylabel('Coefficient')
+    pnpy = args.results_folder+'/plot1'+'.png'
+    plt.savefig(pnpy, format='png')
+    
+
+    return hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles
 
 
 def train_model(args, mdl,results):
