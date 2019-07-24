@@ -8,6 +8,8 @@ import autograd.numpy as np
 import sys
 import shutil
 import math
+import random
+import pickle
 
 import data
 import model
@@ -22,7 +24,7 @@ import torch
 prev_hess = 0
 prev_eigval = 0
 prev_eigvec = 0
-
+initial_model = []
 
 parser = argparse.ArgumentParser()
     # Hessian
@@ -64,7 +66,7 @@ parser.add_argument('--learning-rate', type=float, default=0.01,
                     help='Learning rate')
 parser.add_argument('--stopping-grad-norm', type=float, default=1e-4,
                     help='Stop training if grad_norm becomes smaller than this threshold')
-parser.add_argument('--max-iterations', type=int, default=100,
+parser.add_argument('--max-iterations', type=int, default=10,
                     help='Cancel training after maximum number of iteration steps')
 
 # Results
@@ -128,6 +130,14 @@ def main():
     }
     
     mdl = model.create_model(args, inputs_train, targets_train)     # Actual Model that is being observed
+    
+    
+# NOTE Pickling Initial Weights
+    with open('outfile', 'wb') as fp:
+        pickle.dump(mdl.params, fp)
+        print("Pickled")
+
+    
     mdl_test = model.create_model(args, inputs_train, targets_train)    # Dummy Model for calculating gradient
     
     train_model(args, mdl, mdl_test, results)
@@ -183,6 +193,7 @@ def train_model(args, mdl, mdl_test, results):
 
             # Finding gradient at top vec using Dummy network.
             mdl_test.params_flat = np.array(vec)
+            
             batch_loss_mdl_test = mdl_test.loss(mdl_test.params_flat, inputs, targets)
             batch_grad_mdl_test = mdl_test.gradient(mdl_test.params_flat, inputs, targets)
             mdl_test.params_flat -= batch_grad * args.learning_rate
@@ -217,11 +228,12 @@ def train_model(args, mdl, mdl_test, results):
             prev_hess = hess
             prev_eigval = eigenvalues
             prev_eigvec = eigenvec
-#    saving weithts in all iterations
+
+#    saving weights in all iterations
         if batch_grad_norm <= args.stopping_grad_norm:
             break
         mdl.params_flat -= batch_grad * args.learning_rate
-        print(mdl.params_flat)
+        #print(mdl.params_flat)
         all_w.append(np.power(math.e,mdl.params_flat))
         print('{:06d} {} loss: {:.8f}, norm grad: {:.8f}'.format(
             iter_no, datetime.now(), batch_loss, batch_grad_norm))
@@ -239,6 +251,29 @@ def train_model(args, mdl, mdl_test, results):
     np.save(args.suffix,p_angles)   
     args.suffix=args.results_folder+'/all_weights.npy'
     np.save(args.suffix,np.array(all_w))
+    
+    # SECTION  Traversing Final Weights
+    
+    print("\n======================================================================")
+    mass = mdl.params #mdl.unflatten_params(mdl.params_flat)
+    print(np.shape(mass))
+    print("-----------")
+    with open ('outfile', 'rb') as fp:
+        itemlist = pickle.load(fp)
+    print(np.shape(itemlist))
+    type(initial_model)
+    i1,j1 = np.shape(all_w) 
+    #mdl.unflatten_params(mdl.all_w)
+    #count = len([i for i in fla if i < 0.1]) 
+    #print(count,(i1*j1))
+    #print(random.choice(all_w))
+    print("======================================================================\n")
+    
+
+
+
+
+    
 
 #    Saving png plots
     coeff = torch.tensor(coeff)
