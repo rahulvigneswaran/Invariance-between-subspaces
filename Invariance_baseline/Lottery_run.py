@@ -1,4 +1,4 @@
-# Libraries Import
+# ANCHOR Libraries Import
 import os
 import pickle
 from datetime import datetime
@@ -11,31 +11,28 @@ import math
 import random
 import pickle
 from tqdm import tqdm
-
 import data
 import model
-from rayleigh import get_top_eigensystem, get_bottom_eigensystem        # Not Used anywhere. Remove this library.
 from scipy.linalg import subspace_angles
 import math
-
 import torch
 
-# Initialize Variables
+#ANCHOR Initialize Variables
 
 prev_hess = 0
 prev_eigval = 0
 prev_eigvec = 0
 initial_model = []
 
+#ANCHOR Parser
 parser = argparse.ArgumentParser()
-    # Hessian
+# Hessian
 parser.add_argument('--top', type=int, default= 100,
                     help='Dimension of the top eigenspace')
 parser.add_argument('--suffix', type=str, default='new',
                     help='suffix to save npy array')
 parser.add_argument('--freq', type=int, default='1',
                     help='freq of Hess calculation')
-
 
 # Data Generation
 parser.add_argument('--data-type', type=str, choices=['blob', 'circle', 'moon'], default='blob',
@@ -67,7 +64,7 @@ parser.add_argument('--learning-rate', type=float, default=0.01,
                     help='Learning rate')
 parser.add_argument('--stopping-grad-norm', type=float, default=1e-4,
                     help='Stop training if grad_norm becomes smaller than this threshold')
-parser.add_argument('--max-iterations', type=int, default=1000,
+parser.add_argument('--max-iterations', type=int, default=10,
                     help='Cancel training after maximum number of iteration steps')
 
 # Results
@@ -86,8 +83,8 @@ parser.add_argument('--bottom-evals', type=int, default=0,
                     help='Find bottom k evals')
 
 args = parser.parse_args()
-#args.layer_sizes = np.array(args.layer_sizes)
 
+#ANCHOR Yes or no definition
 def yes_or_no() :
     while True:
         yes = {'yes','y', 'ye', ''}
@@ -101,6 +98,7 @@ def yes_or_no() :
         else:
             sys.stdout.write("\nPlease respond with 'yes' or 'no' \n\n")
 
+#ANCHOR Generate Results folder
 args.results_folder = os.getcwd() + '/' + 'results/'+'B_size-'+str(args.batch_size)+'-Arch-'+str(args.input_dim)+str(args.layer_sizes)+'-iters-'+str(args.max_iterations)+'-data-'+str(args.data_type)+'-hess_freq-'+str(args.hessian_calc_period)+'-top-'+str(args.top)+'--freq-'+str(args.freq)+'--iter-'+str(args.max_iterations)
 if not os.path.exists(args.results_folder):
     os.mkdir(args.results_folder)
@@ -120,7 +118,8 @@ else:
 if args.classifier == 'logreg' and args.data_type == 'blob' and args.num_classes != 2:
     raise Exception('LogReg for more than 2 classes is not implemented yet.')
 
-# SECTION MAIN
+
+# ANCHOR Main
 def main():
     coeff = []
     ang_sb=[]
@@ -138,27 +137,21 @@ def main():
     print("======================================================================\n")
     #print(mdl.params)
     start_params = mdl.params_flat
-    start_params_struct = mdl.unflatten_params
     
-# NOTE Pickling Initial Weights
+    
+    # NOTE Pickling Initial Weights
     with open('outfile', 'wb') as sp:
         pickle.dump(mdl.params_flat, sp)
-    #with open('outfile', 'wb') as sps:
-    #     pickle.dump(mdl.unflatten_params, sps)
+    
 
     new_params = train_model(args, mdl,results)
-
-
-
-
 
     with open ('outfile', 'rb') as sp:
         start_params = pickle.load(sp)
 
 
 
-
-# NOTE Lottery Ticket Pruning Loop 
+    # NOTE Lottery Ticket Pruning Loop 
     per = 10.
     nonzer = (np.count_nonzero(mdl.params_flat))
     zer = len(mdl.params_flat) - nonzer
@@ -168,12 +161,14 @@ def main():
     print(" {} + {} = {}".format(0, nonzer, len(mdl.params_flat)))
     #print(0, nonzer, len(mdl.params_flat))
     
-    new_params = train_model(args, mdl,results)
+    new_params, inputs, outputs = train_model(args, mdl,results)
     hess = mdl.hessian(mdl.params_flat)                 # Calculating Hessian
     hess = torch.tensor(hess).float()                   # Converting the Hessian to Tensor
     eigenvalues, eigenvec = torch.symeig(hess,eigenvectors=True)  
 
-    hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles = invar(mdl,args, inputs_train, targets_train, hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles)
+    hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles, top_vec = invar(mdl,args, inputs_train, targets_train, hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles)
+
+    #NOTE Pruning Loop
 
     print("======================================================================\n")
     for i in tqdm(range (0,6), desc="Pruning Progress",dynamic_ncols=True):
@@ -191,8 +186,29 @@ def main():
        
         
         mdl.params_flat = pruned_params_flat
-        new_params = train_model(args, mdl,results)
-        hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles = invar(mdl,args, inputs_train, targets_train, hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles)
+        new_params, coeff = train_pruned_model(args, mdl,results, top_vec, coeff)
+        
+        #hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles = invar(mdl,args, inputs_train, targets_train, hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles)
+
+    coeff = torch.tensor(coeff)
+    #print(coeff)
+    for i in range(coeff.shape[0]):
+        a=torch.zeros(coeff[i].shape[0]).long()
+        #print(a)
+        b=torch.arange(0, coeff[i].shape[0])
+        #print(b)
+        c=torch.where(((coeff[i] > -0.1) & (coeff[i] < 0.1)),b,a)
+        #print(c)
+        z = torch.zeros(coeff[i].shape[0]).fill_(0)
+        #print(z)
+        z[torch.nonzero(c)] = coeff[i][torch.nonzero(c)]
+        #print(np.shape(z))
+        z = np.array(z)
+        plt.plot(z)
+    plt.xlabel('Dimension')
+    plt.ylabel('Coefficient')
+    pnpy = args.results_folder+'/plot1'+'.png'
+    plt.savefig(pnpy, format='png')
 
     args.suffix=args.results_folder+'/coeff.npy'
     np.save(args.suffix,coeff)
@@ -209,14 +225,14 @@ def main():
 
 # TODO Write Pruning step Here
 # TODO Write Invariance step (But Where?)
-    mdl_test= model.create_model(args, inputs_train, targets_train)    # Dummy Model for calculating gradient
+    #mdl_test= model.create_model(args, inputs_train, targets_train)    # Dummy Model for calculating gradient
     
     #mdl.params = start_params
     #print(start_params)
     #print(np.shape(mdl.params))
 
 
-#NOTE Function for Single Pruning
+#ANCHOR Definition for Single Pruning
 def prune_function(mdl, j):
         zer = 0
         b = mdl.params_flat
@@ -232,7 +248,7 @@ def prune_function(mdl, j):
         return b, zer, nonzer           
 
         
-
+#ANCHOR Invariance defintion for Non pruned network
 def invar(mdl,args, inputs_train, targets_train, prev_hess, prev_eigval, prev_eigvec, coeff, ang_np, ang_sb, p_angles):
     # calculating hessian
     hess = mdl.hessian(mdl.params_flat)                 # Calculating Hessian
@@ -256,11 +272,13 @@ def invar(mdl,args, inputs_train, targets_train, prev_hess, prev_eigval, prev_ei
     # Finding gradient at top vec using Dummy network.
     mdl_test.params_flat = np.array(vec)
 
+    # REVIEW 
     #batch_loss_mdl_test = mdl_test.loss(mdl_test.params_flat, inputs, targets)
     #batch_grad_mdl_test = mdl_test.gradimdl_testent(mdl_test.params_flat, inputs, targets)
     #mdl_test.params_flat -= batch_grad * args.learning_rate
 
-    # Find coeff and append. But why do we need to find the coeffs ?                                              
+    # Find coeff and append. But why do we need to find the coeffs ?     
+    top_vec = mdl_test.params_flat                                         
     c =  torch.mv(hess.transpose(0,1), torch.tensor(mdl_test.params_flat).float())
     if np.size(coeff) == 0:
         coeff = c.detach().cpu().numpy()
@@ -268,6 +286,7 @@ def invar(mdl,args, inputs_train, targets_train, prev_hess, prev_eigval, prev_ei
     else:
         coeff = np.concatenate((coeff,np.expand_dims(c.detach().cpu().numpy(),axis=0)),0) 
 
+    #REVIEW 
     #batch_loss_mdl_test = mdl_test.loss(mdl_test.params_flat, inputs, targets)
     #batch_grad_mdl_test = mdl_test.gradimdl_testent(mdl_test.params_flat, inputs, targets)
     #mdl_test.params_flat -= batch_grad * args.learning_rate
@@ -299,31 +318,16 @@ def invar(mdl,args, inputs_train, targets_train, prev_hess, prev_eigval, prev_ei
     prev_eigval = eigenvalues
     prev_eigvec = eigenvec
 
+    #REVIEW 
     #    Saving png plots
-    coeff = torch.tensor(coeff)
-    #print(coeff)
-    for i in range(coeff.shape[0]):
-        a=torch.zeros(coeff[i].shape[0]).long()
-        #print(a)
-        b=torch.arange(0, coeff[i].shape[0])
-        #print(b)
-        c=torch.where(((coeff[i] > -0.1) & (coeff[i] < 0.1)),b,a)
-        #print(c)
-        z = torch.zeros(coeff[i].shape[0]).fill_(0)
-        #print(z)
-        z[torch.nonzero(c)] = coeff[i][torch.nonzero(c)]
-        #print(np.shape(z))
-        z = np.array(z)
-        plt.plot(z)
-    plt.xlabel('Dimension')
-    plt.ylabel('Coefficient')
-    pnpy = args.results_folder+'/plot1'+'.png'
-    plt.savefig(pnpy, format='png')
+    
     
 
-    return hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles
+    return hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles, top_vec
 
 
+
+# ANCHOR Train Unpruned Definition
 def train_model(args, mdl,results):
     
     all_w=[]
@@ -340,7 +344,7 @@ def train_model(args, mdl,results):
     results['history2'] = []
     results['history2_columns'] = ['full_hessian', 'full_hessian_evals']
 
-    for iter_no in range(args.max_iterations):
+    for iter_no in tqdm(range(args.max_iterations)):
         inputs, targets = get_batch_samples(iter_no, args, mdl)
         batch_loss = mdl.loss(mdl.params_flat, inputs, targets)
         batch_grad = mdl.gradient(mdl.params_flat, inputs, targets)
@@ -366,7 +370,65 @@ def train_model(args, mdl,results):
 
 
     return mdl.params
+ 
+# ANCHOR Train Pruned Definition
+def train_pruned_model(args, mdl,results, top_vec, coeff):
+    
+    all_w=[]
+    results['args'] = args
+    init_loss = mdl.loss(mdl.params_flat)
+    init_grad_norm = np.linalg.norm(mdl.gradient(mdl.params_flat))
 
+    print('Initial loss: {}, norm grad: {}'.format(init_loss, init_grad_norm))
+    results['init_full_loss'] = init_loss
+    results['init_full_grad_norm'] = init_grad_norm
+
+    results['history1'] = []
+    results['history1_columns'] = ['iter_no', 'batch_loss', 'batch_grad_norm', 'batch_param_norm']
+    results['history2'] = []
+    results['history2_columns'] = ['full_hessian', 'full_hessian_evals']
+
+    for iter_no in tqdm(range(args.max_iterations)):
+        inputs, targets = get_batch_samples(iter_no, args, mdl)
+        batch_loss = mdl.loss(mdl.params_flat, inputs, targets)
+        batch_grad = mdl.gradient(mdl.params_flat, inputs, targets)
+        batch_grad_norm = np.linalg.norm(batch_grad)
+        batch_param_norm = np.linalg.norm(mdl.params_flat)
+
+        if iter_no % args.freq == 0:
+
+            # calculating hessian
+            hess = mdl.hessian(mdl.params_flat)                 # Calculating Hessian
+            hess = torch.tensor(hess).float()                   # Converting the Hessian to Tensor
+            c =  torch.mv(hess.transpose(0,1), torch.tensor(top_vec).float())
+            if np.size(coeff) == 0:
+                coeff = c.detach().cpu().numpy()
+                coeff = np.expand_dims(coeff, axis=0)
+            else:
+                coeff = np.concatenate((coeff,np.expand_dims(c.detach().cpu().numpy(),axis=0)),0) 
+                
+        
+#    saving weights in all iterations
+        if batch_grad_norm <= args.stopping_grad_norm:
+            break
+        mdl.params_flat -= batch_grad * args.learning_rate
+        #print(mdl.params_flat)
+        all_w.append(np.power(math.e,mdl.params_flat))
+        #print('{:06d} {} loss: {:.8f}, norm grad: {:.8f}'.format(
+        #    iter_no, datetime.now(), batch_loss, batch_grad_norm))
+
+    final_loss = mdl.loss(mdl.params_flat)
+    final_grad_norm = np.linalg.norm(mdl.gradient(mdl.params_flat))
+    print('Final loss: {}, norm grad: {}\n'.format(final_loss, final_grad_norm))
+    
+    
+
+
+
+    return mdl.params, coeff
+ 
+
+# ANCHOR Batch Sample Definition 
 def get_batch_samples(iter_no, args, mdl):
     """Return inputs and outputs belonging to batch given iteration number."""
     if args.batch_size == 0:
