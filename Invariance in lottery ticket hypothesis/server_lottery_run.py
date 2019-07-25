@@ -202,7 +202,7 @@ def main():
     zer = z1 + zer
     print(" {} + {} = {}".format(0, nonzer, len(mdl.params_flat)))
 
-    new_params, inputs, outputs = train_model(args, mdl, results)
+    new_params = train_model(args, mdl, results)
     hess = mdl.hessian(mdl.params_flat)     # Calculating Hessian
     # Converting the Hessian to Tensor
     hess = torch.tensor(hess).float()
