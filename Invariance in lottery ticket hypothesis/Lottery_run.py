@@ -82,7 +82,7 @@ parser.add_argument('--learning-rate', type=float, default=0.01,
                     help='Learning rate')
 parser.add_argument('--stopping-grad-norm', type=float, default=1e-4,
                     help='Stop training if grad_norm becomes smaller than this threshold')
-parser.add_argument('--max-iterations', type=int, default=10,
+parser.add_argument('--max-iterations', type=int, default=100,
                     help='Cancel training after maximum number of iteration steps')
 
 # Results
