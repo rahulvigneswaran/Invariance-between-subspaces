@@ -457,17 +457,17 @@ if __name__ == '__main__':
 
     args.results_folder = main()
     print("\n\n The code has been successfully executed!!\n\n")
-    a11 = yes_or_no_image()
-    if a11 == True :
-        pnpy = args.results_folder+'/plot1'+'.png'
-        import cv2 
-        img = cv2.imread(pnpy)  
-        cv2.imshow('Plot', img)  
-        cv2.waitKey(0)         
-        cv2.destroyAllWindows() 
-        print("\n\n Tata!!\n\n")
-    else:
-        print("\n\n Tata!!\n\n")
-
+    #a11 = yes_or_no_image()
+    #if a11 == True :
+    #    pnpy = args.results_folder+'/plot1'+'.png'
+    #    import cv2 
+    #    img = cv2.imread(pnpy)  
+    #    cv2.imshow('Plot', img)  
+    #    cv2.waitKey(0)         
+    #    cv2.destroyAllWindows() 
+    #    print("\n\n Tata!!\n\n")
+    #else:
+    #    print("\n\n Tata!!\n\n")
+    #
     print("\n===============================================================================================\n")
 
