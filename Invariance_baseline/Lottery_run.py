@@ -16,18 +16,36 @@ import model
 from scipy.linalg import subspace_angles
 import math
 import torch
+from pyfiglet import Figlet
 
-#ANCHOR Initialize Variables
+#ANCHOR  Clear terminal and suppress warnings
+os.system('clear')
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
+print("===============================================================================================")
+f = Figlet(font='thin')
+print f.renderText('Invariance in lottery ticket hypothesis')
+print(":::: Code by Adepu Ravi Shankar & Rahul-Vigneswaran K 2019 ::::")
+print("===============================================================================================\n")
+
+# ANCHOR Initialize Variables
 
 prev_hess = 0
 prev_eigval = 0
 prev_eigvec = 0
 initial_model = []
 
-#ANCHOR Parser
+# ANCHOR Parser
 parser = argparse.ArgumentParser()
+# Pruning
+parser.add_argument('--per', type=float, default=10.,
+                    help='Pruning Percentage')
+parser.add_argument('--prune_iter', type=int, default=10,
+                    help='Decided the no. of times the pruning has to be done.')
+
 # Hessian
-parser.add_argument('--top', type=int, default= 100,
+parser.add_argument('--top', type=int, default=100,
                     help='Dimension of the top eigenspace')
 parser.add_argument('--suffix', type=str, default='new',
                     help='suffix to save npy array')
@@ -84,13 +102,16 @@ parser.add_argument('--bottom-evals', type=int, default=0,
 
 args = parser.parse_args()
 
-#ANCHOR Yes or no definition
-def yes_or_no() :
-    while True:
-        yes = {'yes','y', 'ye', ''}
-        no = {'no','n'}
+# ANCHOR Yes or no definition
 
-        choice = raw_input("Do you want me to delete the directory? (y/n) \n\n").lower()
+
+def yes_or_no():
+    while True:
+        yes = {'yes', 'y', 'ye', ''}
+        no = {'no', 'n'}
+
+        choice = raw_input(
+            "Do you want me to delete the directory? (y/n) \n\n").lower()
         if choice in yes:
             return True
         elif choice in no:
@@ -98,23 +119,30 @@ def yes_or_no() :
         else:
             sys.stdout.write("\nPlease respond with 'yes' or 'no' \n\n")
 
-#ANCHOR Generate Results folder
-args.results_folder = os.getcwd() + '/' + 'results/'+'B_size-'+str(args.batch_size)+'-Arch-'+str(args.input_dim)+str(args.layer_sizes)+'-iters-'+str(args.max_iterations)+'-data-'+str(args.data_type)+'-hess_freq-'+str(args.hessian_calc_period)+'-top-'+str(args.top)+'--freq-'+str(args.freq)+'--iter-'+str(args.max_iterations)
+
+# ANCHOR Generate Results folder
+args.results_folder = os.getcwd() + '/' + 'results/'+'B_size-'+str(args.batch_size)+'-Arch-'+str(args.input_dim)+str(args.layer_sizes)+'-iters-'+str(args.max_iterations) + \
+    '-data-'+str(args.data_type)+'-hess_freq-'+str(args.hessian_calc_period)+'-top-' + \
+    str(args.top)+'--freq-'+str(args.freq)+'--iter-'+str(args.max_iterations)+'--prune_iter'+str(args.prune_iter)+'--prune_per'+str(args.per)
 if not os.path.exists(args.results_folder):
     os.mkdir(args.results_folder)
-else:    
-    print("\nDirectory " + args.results_folder + " already exists\n")
+else:
+    print("\nDirectory already exists !!\n")
     a1 = yes_or_no()
-    if a1 == True :
-         shutil.rmtree(args.results_folder, ignore_errors=True)         # Prompt to delete directory if it already exists
-         print("====> Directory Deleted")
-         os.mkdir(args.results_folder)
-         print("====> Directory recreated")
+    if a1 == True:
+        # Prompt to delete directory if it already exists
+        shutil.rmtree(args.results_folder, ignore_errors=True)
+        print("====> Directory Deleted")
+        os.mkdir(args.results_folder)
+        print("====> Directory recreated")
+        print("\n")
+        print("===============================================================================================\n")
+
 
     else:
-        print ("Directory Already exists and was not opted for deletion.")
+        print("Directory Already exists and was not opted for deletion.\n\n")
         sys.exit()
-    
+
 if args.classifier == 'logreg' and args.data_type == 'blob' and args.num_classes != 2:
     raise Exception('LogReg for more than 2 classes is not implemented yet.')
 
@@ -122,87 +150,78 @@ if args.classifier == 'logreg' and args.data_type == 'blob' and args.num_classes
 # ANCHOR Main
 def main():
     coeff = []
-    ang_sb=[]
-    ang_np=[]
+    ang_sb = []
+    ang_np = []
     p_angles = []
-    inputs_train, targets_train, inputs_test, targets_test = data.generate_data(args)
+    inputs_train, targets_train, inputs_test, targets_test = data.generate_data(
+        args)
     results = {
         'inputs_train': inputs_train,
         'targets_train': targets_train,
         'inputs_test': inputs_test,
         'targets_test': targets_test
     }
-    
-    mdl = model.create_model(args, inputs_train, targets_train)     # Actual Model that is being observed
-    print("======================================================================\n")
-    #print(mdl.params)
+
+    # Actual Model that is being observed
+    mdl = model.create_model(args, inputs_train, targets_train)
+    print("\n===============================================================================================\n")
+
     start_params = mdl.params_flat
-    
-    
+
     # NOTE Pickling Initial Weights
     with open('outfile', 'wb') as sp:
         pickle.dump(mdl.params_flat, sp)
-    
 
-    new_params = train_model(args, mdl,results)
+    new_params = train_model(args, mdl, results)
 
-    with open ('outfile', 'rb') as sp:
+    with open('outfile', 'rb') as sp:
         start_params = pickle.load(sp)
 
-
-
-    # NOTE Lottery Ticket Pruning Loop 
-    per = 10.
+    # NOTE Lottery Ticket Pruning Loop
+    per = args.per
     nonzer = (np.count_nonzero(mdl.params_flat))
     zer = len(mdl.params_flat) - nonzer
     x1 = nonzer-zer
     z1 = int(((x1/100.)*per))
     zer = z1 + zer
     print(" {} + {} = {}".format(0, nonzer, len(mdl.params_flat)))
-    #print(0, nonzer, len(mdl.params_flat))
-    
-    new_params, inputs, outputs = train_model(args, mdl,results)
-    hess = mdl.hessian(mdl.params_flat)                 # Calculating Hessian
-    hess = torch.tensor(hess).float()                   # Converting the Hessian to Tensor
-    eigenvalues, eigenvec = torch.symeig(hess,eigenvectors=True)  
 
-    hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles, top_vec = invar(mdl,args, inputs_train, targets_train, hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles)
+    new_params, inputs, outputs = train_model(args, mdl, results)
+    hess = mdl.hessian(mdl.params_flat)     # Calculating Hessian
+    # Converting the Hessian to Tensor
+    hess = torch.tensor(hess).float()
+    eigenvalues, eigenvec = torch.symeig(hess, eigenvectors=True)
 
-    #NOTE Pruning Loop
+    hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles, top_vec = invar(
+        mdl, args, inputs_train, targets_train, hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles)
 
-    print("======================================================================\n")
-    for i in tqdm(range (0,6), desc="Pruning Progress",dynamic_ncols=True):
-        print("\n{} +".format(zer)), 
-        
-        pruned_params_flat, zer, nonzer =  prune_function(mdl,zer)
+    # NOTE Pruning Loop
+
+    print("===============================================================================================\n")
+    for i in tqdm(range(0, args.prune_iter), desc="Pruning Progress", dynamic_ncols=True):
+        print("\n{} +".format(zer)),
+
+        pruned_params_flat, zer, nonzer = prune_function(mdl, zer)
         print("{} = {}".format(nonzer, len(mdl.params_flat)))
         x1 = nonzer-zer
         z1 = int((x1/100.)*per)
         zer = z1 + zer
-    
-        for p in range(0,len(start_params)):
+
+        for p in range(0, len(start_params)):
             if (pruned_params_flat[p] != 0.):
                 pruned_params_flat[p] = start_params[p]
-       
-        
+
         mdl.params_flat = pruned_params_flat
-        new_params, coeff = train_pruned_model(args, mdl,results, top_vec, coeff)
-        
-        #hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles = invar(mdl,args, inputs_train, targets_train, hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles)
+        new_params, coeff = train_pruned_model(
+            args, mdl, results, top_vec, coeff)
 
     coeff = torch.tensor(coeff)
-    #print(coeff)
     for i in range(coeff.shape[0]):
-        a=torch.zeros(coeff[i].shape[0]).long()
-        #print(a)
-        b=torch.arange(0, coeff[i].shape[0])
-        #print(b)
-        c=torch.where(((coeff[i] > -0.1) & (coeff[i] < 0.1)),b,a)
-        #print(c)
+        a = torch.zeros(coeff[i].shape[0]).long()
+        b = torch.arange(0, coeff[i].shape[0])
+        c = torch.where(((coeff[i] > -0.1) & (coeff[i] < 0.1)), b, a)
         z = torch.zeros(coeff[i].shape[0]).fill_(0)
-        #print(z)
         z[torch.nonzero(c)] = coeff[i][torch.nonzero(c)]
-        #print(np.shape(z))
         z = np.array(z)
         plt.plot(z)
     plt.xlabel('Dimension')
@@ -210,102 +229,85 @@ def main():
     pnpy = args.results_folder+'/plot1'+'.png'
     plt.savefig(pnpy, format='png')
 
-    args.suffix=args.results_folder+'/coeff.npy'
-    np.save(args.suffix,coeff)
-    args.suffix=args.results_folder+'/ang_sb.npy'
-    np.save(args.suffix,ang_sb)
-    args.suffix=args.results_folder+'/ang_np.npy'
-    np.save(args.suffix,ang_np)   
-    args.suffix=args.results_folder+'/p_angles.npy'
-    np.save(args.suffix,p_angles)   
-    #args.suffix=args.results_folder+'/all_weights.npy'
-    #np.save(args.suffix,np.array(all_w))
+    args.suffix = args.results_folder+'/coeff.npy'
+    np.save(args.suffix, coeff)
+    args.suffix = args.results_folder+'/ang_sb.npy'
+    np.save(args.suffix, ang_sb)
+    args.suffix = args.results_folder+'/ang_np.npy'
+    np.save(args.suffix, ang_np)
+    args.suffix = args.results_folder+'/p_angles.npy'
+    np.save(args.suffix, p_angles)
     
-        
-
-# TODO Write Pruning step Here
-# TODO Write Invariance step (But Where?)
-    #mdl_test= model.create_model(args, inputs_train, targets_train)    # Dummy Model for calculating gradient
-    
-    #mdl.params = start_params
-    #print(start_params)
-    #print(np.shape(mdl.params))
 
 
-#ANCHOR Definition for Single Pruning
+# ANCHOR Definition for Single Pruning
 def prune_function(mdl, j):
-        zer = 0
-        b = mdl.params_flat
-        while zer <= (j):
-            i = random.randrange(0,len(b))
-            b[i] = 0.
-            #print(zer)
-            nonzer = (np.count_nonzero(b))
-            zer = len(b) - nonzer
-            #print(a)
-        #c = mdl.unflatten_params(b)
-        #print(a)
-        return b, zer, nonzer           
+    zer = 0
+    b = mdl.params_flat
+    while zer <= (j):
+        i = random.randrange(0, len(b))
+        b[i] = 0.
+        nonzer = (np.count_nonzero(b))
+        zer = len(b) - nonzer
+    return b, zer, nonzer
 
-        
-#ANCHOR Invariance defintion for Non pruned network
-def invar(mdl,args, inputs_train, targets_train, prev_hess, prev_eigval, prev_eigvec, coeff, ang_np, ang_sb, p_angles):
+
+# ANCHOR Invariance defintion for Non pruned network
+def invar(mdl, args, inputs_train, targets_train, prev_hess, prev_eigval, prev_eigvec, coeff, ang_np, ang_sb, p_angles):
     # calculating hessian
     hess = mdl.hessian(mdl.params_flat)                 # Calculating Hessian
-    hess = torch.tensor(hess).float()                   # Converting the Hessian to Tensor
-    eigenvalues, eigenvec = torch.symeig(hess,eigenvectors=True)    # Extracting the eigenvalues and Eigen Vectors from the Calculated Hessian
-
-       
+    # Converting the Hessian to Tensor
+    hess = torch.tensor(hess).float()
+    # Extracting the eigenvalues and Eigen Vectors from the Calculated Hessian
+    eigenvalues, eigenvec = torch.symeig(hess, eigenvectors=True)
 
     top = args.top      # This decides how many top eigenvectors are considered
-    dom = eigenvec[:,-top:]     # |The reason for negative top :: torch.symeig outputs eigen vectors in the increasing order and as a result |
+                                # |The reason for negative top :: torch.symeig outputs eigen vectors in the increasing order and as a result |
+    dom = eigenvec[:, -top:]
                                 # |       mdl                        the top (maximum) eigenvectors will be atlast.                             |
     dom = dom.float()
-    alpha=torch.rand(top)       # A random vector which is of the dim of variable "top" is being initialized
-   
-    # Finding the top vector
-    vec=(alpha*dom.float()).sum(1)          # Representing alpha onto dominant eigen vector
-    vec=vec/torch.sqrt((vec*vec).sum())     # Normalization of top vector
+    # A random vector which is of the dim of variable "top" is being initialized
+    alpha = torch.rand(top)
 
-    mdl_test = model.create_model(args, inputs_train, targets_train)    # Dummy Model for calculating gradient
+    # Finding the top vector
+    # Representing alpha onto dominant eigen vector
+    vec = (alpha*dom.float()).sum(1)
+    vec = vec/torch.sqrt((vec*vec).sum())     # Normalization of top vector
+
+    # Dummy Model for calculating gradient
+    mdl_test = model.create_model(args, inputs_train, targets_train)
 
     # Finding gradient at top vec using Dummy network.
     mdl_test.params_flat = np.array(vec)
 
-    # REVIEW 
-    #batch_loss_mdl_test = mdl_test.loss(mdl_test.params_flat, inputs, targets)
-    #batch_grad_mdl_test = mdl_test.gradimdl_testent(mdl_test.params_flat, inputs, targets)
-    #mdl_test.params_flat -= batch_grad * args.learning_rate
-
-    # Find coeff and append. But why do we need to find the coeffs ?     
-    top_vec = mdl_test.params_flat                                         
-    c =  torch.mv(hess.transpose(0,1), torch.tensor(mdl_test.params_flat).float())
+    # Find coeff and append.
+    top_vec = mdl_test.params_flat
+    c = torch.mv(hess.transpose(0, 1), torch.tensor(
+        mdl_test.params_flat).float())
     if np.size(coeff) == 0:
         coeff = c.detach().cpu().numpy()
         coeff = np.expand_dims(coeff, axis=0)
     else:
-        coeff = np.concatenate((coeff,np.expand_dims(c.detach().cpu().numpy(),axis=0)),0) 
-
-    #REVIEW 
-    #batch_loss_mdl_test = mdl_test.loss(mdl_test.params_flat, inputs, targets)
-    #batch_grad_mdl_test = mdl_test.gradimdl_testent(mdl_test.params_flat, inputs, targets)
-    #mdl_test.params_flat -= batch_grad * args.learning_rate
+        coeff = np.concatenate(
+            (coeff, np.expand_dims(c.detach().cpu().numpy(), axis=0)), 0)
 
     # Statistics of subspaces, (1) Angle between top subpaces
-    eigenvalues_prev, eigenvec_prev = torch.symeig(prev_hess, eigenvectors = True)
-    dom_prev = eigenvec_prev[:,-top:]           # Is it not the same as the variable "dom" that was calculated earlier ?
+    eigenvalues_prev, eigenvec_prev = torch.symeig(
+        prev_hess, eigenvectors=True)
+    # Is it not the same as the variable "dom" that was calculated earlier ?
+    dom_prev = eigenvec_prev[:, -top:]
 
     # calculation 1 norm, which is nothing but angle between subspaces
-    ang=np.linalg.norm(torch.mm(dom_prev, dom.transpose(0,1)).numpy(),1)
+    ang = np.linalg.norm(torch.mm(dom_prev, dom.transpose(0, 1)).numpy(), 1)
     ang_sb.append(ang)
     ang = np.rad2deg(subspace_angles(dom_prev, dom))
     ang_np.append(ang)
 
     # Calculating principal angles
-    u,s,v =torch.svd(torch.mm(dom.transpose(0, 1), dom_prev))
+    u, s, v = torch.svd(torch.mm(dom.transpose(0, 1), dom_prev))
 
     # Output in radians
-    s = torch.acos(torch.clamp(s,min=-1,max=1))
+    s = torch.acos(torch.clamp(s, min=-1, max=1))
     s = s*180/math.pi
 
     # Attach 's' to p_angles
@@ -313,24 +315,19 @@ def invar(mdl,args, inputs_train, targets_train, prev_hess, prev_eigval, prev_ei
         p_angles = s.detach().cpu().numpy()
         p_angles = np.expand_dims(p_angles, axis=0)
     else:
-        p_angles = np.concatenate((p_angles,np.expand_dims(s.detach().cpu().numpy(),axis=0)),0) 
+        p_angles = np.concatenate(
+            (p_angles, np.expand_dims(s.detach().cpu().numpy(), axis=0)), 0)
     prev_hess = hess
     prev_eigval = eigenvalues
     prev_eigvec = eigenvec
 
-    #REVIEW 
-    #    Saving png plots
-    
-    
-
     return hess, eigenvalues, eigenvec, coeff, ang_np, ang_sb, p_angles, top_vec
 
 
-
 # ANCHOR Train Unpruned Definition
-def train_model(args, mdl,results):
-    
-    all_w=[]
+def train_model(args, mdl, results):
+
+    all_w = []
     results['args'] = args
     init_loss = mdl.loss(mdl.params_flat)
     init_grad_norm = np.linalg.norm(mdl.gradient(mdl.params_flat))
@@ -340,7 +337,8 @@ def train_model(args, mdl,results):
     results['init_full_grad_norm'] = init_grad_norm
 
     results['history1'] = []
-    results['history1_columns'] = ['iter_no', 'batch_loss', 'batch_grad_norm', 'batch_param_norm']
+    results['history1_columns'] = ['iter_no', 'batch_loss',
+                                   'batch_grad_norm', 'batch_param_norm']
     results['history2'] = []
     results['history2_columns'] = ['full_hessian', 'full_hessian_evals']
 
@@ -351,30 +349,27 @@ def train_model(args, mdl,results):
         batch_grad_norm = np.linalg.norm(batch_grad)
         batch_param_norm = np.linalg.norm(mdl.params_flat)
 
-        
+
 #    saving weights in all iterations
         if batch_grad_norm <= args.stopping_grad_norm:
             break
         mdl.params_flat -= batch_grad * args.learning_rate
-        #print(mdl.params_flat)
-        all_w.append(np.power(math.e,mdl.params_flat))
-        #print('{:06d} {} loss: {:.8f}, norm grad: {:.8f}'.format(
-        #    iter_no, datetime.now(), batch_loss, batch_grad_norm))
+        
+        all_w.append(np.power(math.e, mdl.params_flat))
+        
 
     final_loss = mdl.loss(mdl.params_flat)
     final_grad_norm = np.linalg.norm(mdl.gradient(mdl.params_flat))
     print('Final loss: {}, norm grad: {}\n'.format(final_loss, final_grad_norm))
-    
-    
-
-
 
     return mdl.params
- 
+
 # ANCHOR Train Pruned Definition
-def train_pruned_model(args, mdl,results, top_vec, coeff):
-    
-    all_w=[]
+
+
+def train_pruned_model(args, mdl, results, top_vec, coeff):
+
+    all_w = []
     results['args'] = args
     init_loss = mdl.loss(mdl.params_flat)
     init_grad_norm = np.linalg.norm(mdl.gradient(mdl.params_flat))
@@ -384,7 +379,8 @@ def train_pruned_model(args, mdl,results, top_vec, coeff):
     results['init_full_grad_norm'] = init_grad_norm
 
     results['history1'] = []
-    results['history1_columns'] = ['iter_no', 'batch_loss', 'batch_grad_norm', 'batch_param_norm']
+    results['history1_columns'] = ['iter_no', 'batch_loss',
+                                   'batch_grad_norm', 'batch_param_norm']
     results['history2'] = []
     results['history2_columns'] = ['full_hessian', 'full_hessian_evals']
 
@@ -398,37 +394,33 @@ def train_pruned_model(args, mdl,results, top_vec, coeff):
         if iter_no % args.freq == 0:
 
             # calculating hessian
-            hess = mdl.hessian(mdl.params_flat)                 # Calculating Hessian
-            hess = torch.tensor(hess).float()                   # Converting the Hessian to Tensor
-            c =  torch.mv(hess.transpose(0,1), torch.tensor(top_vec).float())
+            # Calculating Hessian
+            hess = mdl.hessian(mdl.params_flat)
+            # Converting the Hessian to Tensor
+            hess = torch.tensor(hess).float()
+            c = torch.mv(hess.transpose(0, 1), torch.tensor(top_vec).float())
             if np.size(coeff) == 0:
                 coeff = c.detach().cpu().numpy()
                 coeff = np.expand_dims(coeff, axis=0)
             else:
-                coeff = np.concatenate((coeff,np.expand_dims(c.detach().cpu().numpy(),axis=0)),0) 
-                
-        
+                coeff = np.concatenate(
+                    (coeff, np.expand_dims(c.detach().cpu().numpy(), axis=0)), 0)
+
+
 #    saving weights in all iterations
         if batch_grad_norm <= args.stopping_grad_norm:
             break
         mdl.params_flat -= batch_grad * args.learning_rate
-        #print(mdl.params_flat)
-        all_w.append(np.power(math.e,mdl.params_flat))
-        #print('{:06d} {} loss: {:.8f}, norm grad: {:.8f}'.format(
-        #    iter_no, datetime.now(), batch_loss, batch_grad_norm))
-
+        all_w.append(np.power(math.e, mdl.params_flat))
+        
     final_loss = mdl.loss(mdl.params_flat)
     final_grad_norm = np.linalg.norm(mdl.gradient(mdl.params_flat))
     print('Final loss: {}, norm grad: {}\n'.format(final_loss, final_grad_norm))
-    
-    
-
-
 
     return mdl.params, coeff
- 
 
-# ANCHOR Batch Sample Definition 
+
+# ANCHOR Batch Sample Definition
 def get_batch_samples(iter_no, args, mdl):
     """Return inputs and outputs belonging to batch given iteration number."""
     if args.batch_size == 0:
@@ -443,12 +435,9 @@ def get_batch_samples(iter_no, args, mdl):
     return inputs, targets
 
 
-
-
-
-
-
-
 if __name__ == '__main__':
-    
+
     main()
+    print("\n\n The code has been successfully executed!!\n\n")
+    print("\n===============================================================================================\n")
+
