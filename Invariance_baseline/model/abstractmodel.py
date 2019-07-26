@@ -34,9 +34,10 @@ class Model(object):
         if inputs is None:
             predictions = self.predict(params)
             return log_loss(self.targets, predictions)
-
+        
         predictions = self.predict(params, inputs)
         return log_loss(targets, predictions)
+        
 
     @property
     def params(self):
@@ -72,8 +73,12 @@ def create_model(args, inputs, targets):
         mdl = model.create_logreg_model(args, inputs, targets)
     elif args.classifier == 'fullconn':
         mdl = model.create_fully_connected_model(args, inputs, targets)
+        
     else:
         raise Exception('Unknown classifier type {}'.format(args.classifier))
+
+    
+    print("===========================================================================> HEELOOOOOOOOOOOOOOOOo")
 
     quick_grad_check(mdl.loss, mdl.params_flat, verbose=False)
     return mdl

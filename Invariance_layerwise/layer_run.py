@@ -31,7 +31,7 @@ initial_model = []
 
 parser = argparse.ArgumentParser()
     # Hessian
-parser.add_argument('--top', type=int, default= 100,
+parser.add_argument('--top', type=int, default= 5,
                     help='Dimension of the top eigenspace')
 parser.add_argument('--suffix', type=str, default='new',
                     help='suffix to save npy array')
@@ -134,7 +134,35 @@ def main():
     
     mdl = model.create_model(args, inputs_train, targets_train)     # Actual Model that is being observed
     mdl_test = model.create_model(args, inputs_train, targets_train)    # Dummy Model for calculating gradient
+    #print((mdl.params[0][0]))
+    #print(mdl.params_flat)
+    #print(len((list(np.array(mdl.params).flat))))
+   
+  
+    
+   
+
+
     train_model(args, mdl, mdl_test, results)
+
+
+def layer_size(args):
+    layer_sizes = [args.input_dim] + args.layer_sizes + [args.num_classes]
+    
+    return((layer_sizes))
+
+def layer_weights(layer_info, layer_interest):
+
+        hess_start = 0
+
+        hess_len = layer_info[layer_interest -1]*layer_info[layer_interest] + layer_info[layer_interest]
+
+        other_layer = layer_interest
+
+        for i in range (1, layer_interest):
+            hess_start = hess_start + layer_info[i -1]*layer_info[i] + layer_info[i]
+            
+        return(hess_len, hess_start)
 
 
 def train_model(args, mdl, mdl_test, results):
@@ -165,12 +193,23 @@ def train_model(args, mdl, mdl_test, results):
         if iter_no % args.freq == 0:
 
             # calculating hessian
-            hess = mdl.hessian(mdl.params_flat)                 # Calculating Hessian
-            hess = torch.tensor(hess).float()                   # Converting the Hessian to Tensor
-            eigenvalues, eigenvec = torch.symeig(hess,eigenvectors=True)    # Extracting the eigenvalues and Eigen Vectors from the Calculated Hessian
+            layer_interest = 1
+            hess_len, hess_start = layer_weights(layer_size(args), layer_interest)
+
+            hess = mdl.hessian(mdl.params_flat) 
+            #print((hess))
+            #print((hess[0][0]))
+            #print(hess_len, hess_start)
+            new_hess = hess[hess_start:(hess_start+hess_len),hess_start:(hess_start+hess_len)]
+            #print(np.shape(mdl.params))
+            #print((mdl.params))
+            #print(np.shape(mdl.params_flat))
+            #print(np.shape(hess))                # Calculating Hessian
+            new_hess = torch.tensor(new_hess).float()                   # Converting the Hessian to Tensor
+            eigenvalues, eigenvec = torch.symeig(new_hess,eigenvectors=True)    # Extracting the eigenvalues and Eigen Vectors from the Calculated Hessian
             
             if iter_no == 0:
-                prev_hess = hess
+                prev_hess = new_hess
                 prev_eigval = eigenvalues
                 prev_eigvec = eigenvec
             
@@ -181,19 +220,27 @@ def train_model(args, mdl, mdl_test, results):
             alpha=torch.rand(top)       # A random vector which is of the dim of variable "top" is being initialized
 
             # Finding the top vector
+            print(np.shape(alpha))
+            print(alpha)
             vec=(alpha*dom.float()).sum(1)          # Representing alpha onto dominant eigen vector
             vec=vec/torch.sqrt((vec*vec).sum())     # Normalization of top vector
 #            vec = vec*5
 
             # Finding gradient at top vec using Dummy network.
-            mdl_test.params_flat = np.array(vec)
+            
+            print(np.shape(mdl_test.params_flat))
+            print(np.shape(vec))
+
+            mdl_test.params_flat = mdl.params_flat
+
+            mdl_test.params_flat[hess_start:(hess_start+hess_len)] = np.array(vec)
             
             batch_loss_mdl_test = mdl_test.loss(mdl_test.params_flat, inputs, targets)
             batch_grad_mdl_test = mdl_test.gradient(mdl_test.params_flat, inputs, targets)
             mdl_test.params_flat -= batch_grad * args.learning_rate
 
             # Find coeff and append. But why do we need to find the coeffs ?                                              
-            c =  torch.mv(hess.transpose(0,1), torch.tensor(mdl_test.params_flat).float())
+            c =  torch.mv(new_hess.transpose(0,1), torch.tensor(mdl_test.params_flat[hess_start:(hess_start+hess_len)]).float())
             if np.size(coeff) == 0:
                 coeff = c.detach().cpu().numpy()
                 coeff = np.expand_dims(coeff, axis=0)
@@ -219,7 +266,7 @@ def train_model(args, mdl, mdl_test, results):
                 p_angles = np.expand_dims(p_angles, axis=0)
             else:
                 p_angles = np.concatenate((p_angles,np.expand_dims(s.detach().cpu().numpy(),axis=0)),0) 
-            prev_hess = hess
+            prev_hess = new_hess
             prev_eigval = eigenvalues
             prev_eigvec = eigenvec
 
