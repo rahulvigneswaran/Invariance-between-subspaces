@@ -242,7 +242,7 @@ def train_model(args, mdl, mdl_test, results):
 
             batch_grad_mdl_test = mdl_test.gradient(mdl_test.params_flat, inputs, targets)
 
-            mdl_test.params_flat -= batch_grad _mdl_test* args.learning_rate
+            mdl_test.params_flat -= batch_grad_mdl_test * args.learning_rate
 
 
 
