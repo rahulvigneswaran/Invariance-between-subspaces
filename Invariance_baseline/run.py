@@ -190,7 +190,7 @@ def train_model(args, mdl, mdl_test, results):
             
             batch_loss_mdl_test = mdl_test.loss(mdl_test.params_flat, inputs, targets)
             batch_grad_mdl_test = mdl_test.gradient(mdl_test.params_flat, inputs, targets)
-            mdl_test.params_flat -= batch_grad * args.learning_rate
+            mdl_test.params_flat -= batch_grad_mdl_test * args.learning_rate
 
             # Find coeff and append. But why do we need to find the coeffs ?                                              
             c =  torch.mv(hess.transpose(0,1), torch.tensor(mdl_test.params_flat).float())
