@@ -238,11 +238,11 @@ def train_model(args, mdl, mdl_test, results):
 
 
             
-            batch_loss_mdl_test = mdl_test.loss(mdl_test.params_flat, inputs, targets)
-
             batch_grad_mdl_test = mdl_test.gradient(mdl_test.params_flat, inputs, targets)
+            
+            # Gradients are updated only for the first layer.
+            mdl_test.params_flat[hess_start:(hess_start+hess_len)] -= batch_grad_mdl_test[hess_start:(hess_start+hess_len)] * args.learning_rate
 
-            mdl_test.params_flat -= batch_grad_mdl_test * args.learning_rate
 
 
 

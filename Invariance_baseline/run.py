@@ -188,7 +188,7 @@ def train_model(args, mdl, mdl_test, results):
             # Finding gradient at top vec using Dummy network.
             mdl_test.params_flat = np.array(vec)
             
-            batch_loss_mdl_test = mdl_test.loss(mdl_test.params_flat, inputs, targets)
+            
             batch_grad_mdl_test = mdl_test.gradient(mdl_test.params_flat, inputs, targets)
             mdl_test.params_flat -= batch_grad_mdl_test * args.learning_rate
 
