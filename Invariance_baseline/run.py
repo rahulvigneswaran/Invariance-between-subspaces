@@ -69,7 +69,7 @@ parser.add_argument('--learning-rate', type=float, default=0.01,
                     help='Learning rate')
 parser.add_argument('--stopping-grad-norm', type=float, default=1e-4,
                     help='Stop training if grad_norm becomes smaller than this threshold')
-parser.add_argument('--max-iterations', type=int, default=100,
+parser.add_argument('--max-iterations', type=int, default=1000,
                     help='Cancel training after maximum number of iteration steps')
 
 # Results
@@ -261,7 +261,7 @@ def train_model(args, mdl, mdl_test, results):
     plt.xlabel('Dimension', fontsize=14)
     plt.ylabel('Coefficient', fontsize=14)
     pnpy = args.results_folder+'/plot1'+'.png'
-    plt.savefig(pnpy, format='png')
+    plt.savefig(pnpy, format='png', pad_inches=5)
 
 
 def get_batch_samples(iter_no, args, mdl):

@@ -70,7 +70,7 @@ parser.add_argument('--data-seed', type=int, default=None,
 # Model
 parser.add_argument('--classifier', type=str, choices=['logreg', 'fullconn'], default='fullconn',
                     help='Type of classifier. Logistic Regression, Fully-Connected NN.')
-parser.add_argument('--layer-sizes', nargs='*', type=int, default=[10, 5],
+parser.add_argument('--layer-sizes', nargs='*', type=int, default=[20, 10],
                     help='Number of units in hidden layers. '
                          'First layer will have --input-dim units. Last layer will have --num-classes units.')
 
@@ -240,10 +240,10 @@ def main():
         z[torch.nonzero(c)] = coeff[i][torch.nonzero(c)]
         z = np.array(z)
         plt.plot(z)
-    plt.xlabel('Dimension')
-    plt.ylabel('Coefficient')
-    pnpy = args.results_folder+'/plot1'+'.png'
-    plt.savefig(pnpy, format='png')
+    plt.xlabel('Dimension', fontsize=14)
+    plt.ylabel('Coefficient', fontsize=14)
+    pnpy = args.results_folder+'.png'
+    plt.savefig(pnpy, format='png', pad_inches=5)
 
     args.suffix = args.results_folder+'/coeff.npy'
     np.save(args.suffix, coeff)
