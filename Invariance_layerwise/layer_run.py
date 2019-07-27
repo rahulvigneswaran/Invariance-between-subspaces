@@ -193,7 +193,7 @@ def train_model(args, mdl, mdl_test, results):
         if iter_no % args.freq == 0:
 
             # calculating hessian
-            layer_interest = 1
+            layer_interest = 2
             hess_len, hess_start = layer_weights(layer_size(args), layer_interest)
 
             hess = mdl.hessian(mdl.params_flat) 

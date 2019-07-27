@@ -23,8 +23,6 @@ def initalize_parameters(layer_sizes, scale=0.1):
     params = []
     for n_units_in_curr_layer, n_units_in_next_layer in zip(layer_sizes[:-1], layer_sizes[1:]):
         weight_matrix = scale * np.random.randn(n_units_in_curr_layer, n_units_in_next_layer)
-         print("===========================================================================> HEELOOOOOOOOOOOOOOOOo")
-
         bias_vector = scale * np.random.randn(n_units_in_next_layer)
         params.append((weight_matrix, bias_vector))
     return params
