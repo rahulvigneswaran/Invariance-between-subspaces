@@ -70,7 +70,7 @@ parser.add_argument('--data-seed', type=int, default=None,
 # Model
 parser.add_argument('--classifier', type=str, choices=['logreg', 'fullconn'], default='fullconn',
                     help='Type of classifier. Logistic Regression, Fully-Connected NN.')
-parser.add_argument('--layer-sizes', nargs='*', type=int, default=[20, 10],
+parser.add_argument('--layer-sizes', nargs='*', type=int, default=[40, 20],
                     help='Number of units in hidden layers. '
                          'First layer will have --input-dim units. Last layer will have --num-classes units.')
 
