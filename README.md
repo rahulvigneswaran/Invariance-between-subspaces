@@ -24,7 +24,7 @@
 
 ## Repository Structure
 ```bash
-Invariance_between_subspaces
+Invariance-between-subspaces
 ├── baseline.py
 ├── lottery_ticket.py
 ├── layerwise.py
