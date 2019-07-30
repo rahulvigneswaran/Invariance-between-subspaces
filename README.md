@@ -9,9 +9,7 @@
 *Fig 1: Flowchart of Invariance Baseline*
 
 ------------------------------------------------
-
 ![FlowChart](readme_assets/lottery_ticket.png)
-
 *Fig 2: Flowchart of Invariance in Lottery Ticket Hypothesis*
 
 ------------------------------------------------
