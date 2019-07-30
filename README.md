@@ -58,6 +58,6 @@ Invariance-between-subspaces
 
 
 ## Issue / Want to Contribute ? :
-Open a new issue or do a pull request incase your are facing any difficulty with the code base or you want to contribute to it.
+Open a new issue or do a pull request incase you are facing any difficulty with the code base or if you want to contribute to it.
 
 [![forthebadge](https://forthebadge.com/images/badges/built-with-love.svg)](https://github.com/rahulvigneswaran/Invariance-between-subspaces/issues/new)
