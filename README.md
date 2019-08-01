@@ -9,7 +9,7 @@
 - [ ] Add the presentation
 - [ ] Implement for MNIST and CIFAR-10 datasets
 - [ ] Convert the graphs into Gifs
-- [ ] Add visualization for the Gradient Descent. (Refer [optimizer-visualization](https://github.com/Jaewan-Yun/optimizer-visualization)
+- [ ] Add visualization for the Gradient Descent. (Refer [optimizer-visualization](https://github.com/Jaewan-Yun/optimizer-visualization))
 
 ## Flowcharts
 
