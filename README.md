@@ -1,6 +1,15 @@
 # Invariance Between Subspaces [![Made With python 3.7](https://img.shields.io/badge/Made%20with-Python%203.7-brightgreen)]() [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)]() [![Open Source Love svg1](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)]() 
 
 
+## To Do :
+- [ ] Sort Eigen before importing
+- [ ] Plot Principle Angles
+- [ ] Do an implementation from scratch with PyTorch
+- [ ] Write a detailed blog
+- [ ] Add the presentation
+- [ ] Implement for MNIST and CIFAR-10 datasets
+- [ ] Convert the graphs into Gifs
+- [ ] Add visualization for the Gradient Descent. (Refer [optimizer-visualization][https://github.com/Jaewan-Yun/optimizer-visualization])
 
 ## Flowcharts
 
