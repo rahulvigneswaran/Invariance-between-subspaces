@@ -8,7 +8,7 @@ kiwisolver==1.1.0
 lazy-object-proxy==1.4.1
 matplotlib==3.1.1
 mccabe==0.6.1
-numpy==1.17.0
+numpy==1.22.0
 pyfiglet==0.8.post1
 pylint==2.3.1
 pyparsing==2.4.1.1
